@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>محاسبه تناژ تبرید ساختمان</title>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eef3f6;--card:#fff;--ink:#0f2a3a;--mut:#5a7080;--line:#d3dee5;--acc:#0a7f96;--accbg:#e1f3f6;--hot:#d9582b;--f:"Vazirmatn",Tahoma,sans-serif;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0c1a23;--card:#13262f;--ink:#e6f0f4;--mut:#93a9b5;--line:#25404d;--acc:#4cc3d9;--accbg:#173843;--hot:#ff8a5c}}
+:root[data-theme="dark"]{--bg:#0c1a23;--card:#13262f;--ink:#e6f0f4;--mut:#93a9b5;--line:#25404d;--acc:#4cc3d9;--accbg:#173843;--hot:#ff8a5c}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f);line-height:1.7}
+.wrap{max-width:1100px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:1.5rem;margin:0 0 4px;font-weight:800}
+.sub{color:var(--mut);margin:0 0 20px;font-size:.92rem}
+.grid{display:grid;grid-template-columns:1fr 380px;gap:18px;align-items:start}
+@media(max-width:860px){.grid{grid-template-columns:1fr}}
+fieldset{background:var(--card);border:1px solid var(--line);border-radius:10px;margin:0 0 14px;padding:14px 16px 16px}
+legend{font-weight:700;padding:0 8px;color:var(--acc)}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+label{display:flex;flex-direction:column;font-size:.82rem;color:var(--mut);gap:3px}
+input,select{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:7px 9px;width:100%;min-width:0}
+input:focus,select:focus{outline:2px solid var(--acc);outline-offset:1px}
+.chk{flex-direction:row;align-items:center;gap:8px;color:var(--ink);font-size:.9rem}
+.chk input{width:auto}
+.res{position:sticky;top:calc(12px + env(safe-area-inset-top,0px));background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px}
+@media(max-width:860px){.res{position:static}}
+.big{display:flex;align-items:baseline;gap:8px}
+.big b{font-size:3.6rem;font-weight:800;color:var(--acc);line-height:1.1;font-variant-numeric:tabular-nums}
+.big span{font-size:1.1rem;color:var(--mut)}
+.rec{background:var(--accbg);border-radius:8px;padding:8px 12px;margin:8px 0 14px;font-size:.92rem}
+.kv{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.kv div{border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+.kv small{display:block;color:var(--mut);font-size:.75rem}
+.kv strong{font-variant-numeric:tabular-nums}
+.bar{margin:7px 0}
+.bar .t{display:flex;justify-content:space-between;font-size:.82rem}
+.bar .t em{font-style:normal;color:var(--mut);font-variant-numeric:tabular-nums}
+.bar .tr{height:7px;background:var(--bg);border-radius:4px;overflow:hidden;margin-top:2px}
+.bar .tr i{display:block;height:100%;background:var(--acc);border-radius:4px;transition:width .25s}
+.bar.h .tr i{background:var(--hot)}
+.note{font-size:.76rem;color:var(--mut);margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>محاسبه تناژ تبرید ساختمان</h1>
+<p class="sub">مشخصات ساختمان را وارد کنید؛ بار سرمایشی و ظرفیت پیشنهادی دستگاه به‌صورت لحظه‌ای محاسبه می‌شود.</p>
+<div class="grid">
+<div>
+<fieldset><legend>ابعاد ساختمان</legend><div class="row">
+<label>طول (متر)<input id="L" type="number" value="20" min="1" step="0.5"></label>
+<label>عرض (متر)<input id="W" type="number" value="15" min="1" step="0.5"></label>
+<label>ارتفاع سقف (متر)<input id="H" type="number" value="3" min="2" step="0.1"></label>
+<label>تعداد طبقات تهویه‌شونده<input id="F" type="number" value="1" min="1" step="1"></label>
+</div>
+<label class="chk" style="margin-top:10px"><input id="roofEx" type="checkbox" checked> بالاترین طبقه در تماس مستقیم با بام است</label>
+</fieldset>
+
+<fieldset><legend>شرایط طراحی</legend><div class="row">
+<label>دمای خشک بیرون (°C)<input id="To" type="number" value="38" step="1"></label>
+<label>رطوبت نسبی بیرون (%)<input id="RHo" type="number" value="25" min="5" max="100"></label>
+<label>دمای داخل (°C)<input id="Ti" type="number" value="24" step="0.5"></label>
+<label>رطوبت نسبی داخل (%)<input id="RHi" type="number" value="50" min="20" max="80"></label>
+</div></fieldset>
+
+<fieldset><legend>پوشش و جداره‌ها</legend><div class="row">
+<label>نوع دیوار خارجی<select id="wall">
+<option value="1.8">آجر ۲۰ سانتی بدون عایق (U=1.8)</option>
+<option value="2.2">بلوک سیمانی ۲۰ سانتی (U=2.2)</option>
+<option value="3.0">بتن ۲۰ سانتی (U=3.0)</option>
+<option value="0.55">آجر با عایق ۵ سانتی (U=0.55)</option>
+<option value="0.35">ساندویچ پنل ۱۰ سانتی (U=0.35)</option></select></label>
+<label>رنگ نمای ساختمان<select id="col"><option value="4">روشن</option><option value="8" selected>متوسط</option><option value="12">تیره</option></select></label>
+<label>نوع سقف / بام<select id="roof">
+<option value="1.8">تیرچه‌بلوک بدون عایق (U=1.8)</option>
+<option value="1.6">ایزوگام بدون عایق (U=1.6)</option>
+<option value="0.5">بام عایق‌دار (U=0.5)</option>
+<option value="0.4">ساندویچ پنل سقفی (U=0.4)</option></select></label>
+<label>رنگ بام<select id="rcol"><option value="10">روشن</option><option value="15" selected>متوسط</option><option value="20">تیره</option></select></label>
+</div></fieldset>
+
+<fieldset><legend>پنجره‌ها</legend><div class="row">
+<label>سطح شیشه از کل نما (%)<input id="gp" type="number" value="20" min="0" max="90"></label>
+<label>نوع شیشه<select id="gl">
+<option value="5.8|0.86">تک‌جداره ساده</option>
+<option value="2.8|0.70" selected>دوجداره معمولی</option>
+<option value="1.8|0.40">دوجداره Low-E</option>
+<option value="2.5|0.30">شیشه رفلکس / رنگی</option></select></label>
+<label>جهت غالب پنجره‌ها<select id="or">
+<option value="290">توزیع یکنواخت</option><option value="110">شمال</option><option value="380">شرق</option><option value="250">جنوب</option><option value="400">غرب</option></select></label>
+<label>سایه‌بان<select id="sh"><option value="1">ندارد</option><option value="0.7" selected>پرده داخلی</option><option value="0.4">سایبان خارجی</option></select></label>
+</div></fieldset>
+
+<fieldset><legend>بار داخلی و تهویه</legend><div class="row">
+<label>تعداد افراد<input id="np" type="number" value="30" min="0"></label>
+<label>نوع فعالیت<select id="act">
+<option value="75|55">اداری / سبک</option><option value="75|75">فروشگاهی</option><option value="85|95">رستوران</option><option value="150|200">سالن ورزشی</option></select></label>
+<label>روشنایی (W/m²)<input id="lt" type="number" value="12" min="0"></label>
+<label>تجهیزات (W/m²)<input id="eq" type="number" value="15" min="0"></label>
+<label>هوای تازه برای هر نفر (L/s)<input id="vp" type="number" value="8" min="0" step="0.5"></label>
+<label>نشت هوا (ACH)<input id="ach" type="number" value="0.3" min="0" step="0.1"></label>
+<label>ضریب اطمینان (%)<input id="sf" type="number" value="10" min="0" max="40"></label>
+</div></fieldset>
+</div>
+
+<aside class="res" aria-live="polite">
+<div class="big"><b id="tr">0</b><span>تن تبرید (TR)</span></div>
+<div class="rec" id="rec"></div>
+<div class="kv">
+<div><small>بار کل</small><strong id="kw"></strong></div>
+<div><small>BTU/h</small><strong id="btu"></strong></div>
+<div><small>بار بر متر مربع</small><strong id="wm"></strong></div>
+<div><small>متر مربع به ازای هر TR</small><strong id="m2"></strong></div>
+</div>
+<div id="bars"></div>
+<div class="note">محاسبه به روش ساده‌شده (اختلاف دمای معادل و ضرایب تابش) انجام شده و برای برآورد اولیه مناسب است. برای طراحی نهایی از محاسبات دقیق ASHRAE یا نرم‌افزار تخصصی (مانند HAP) استفاده کنید.</div>
+</aside>
+</div>
+</div>
+<script>
+const $=id=>document.getElementById(id), n=id=>parseFloat($(id).value)||0;
+const fmt=(x,d=0)=>x.toLocaleString('en-US',{maximumFractionDigits:d,minimumFractionDigits:d});
+function W_(T,rh){const pw=610.94*Math.exp(17.625*T/(T+243.04))*rh/100;return 0.622*pw/(101325-pw)}
+function calc(){
+ const L=n('L'),Wd=n('W'),H=n('H'),F=Math.max(1,n('F')),To=n('To'),Ti=n('Ti');
+ const dT=To-Ti, area=L*Wd*F, vol=area*H;
+ const facade=2*(L+Wd)*H*F, glass=facade*Math.min(n('gp'),95)/100, wall=facade-glass;
+ const roofA=$('roofEx').checked?L*Wd:0;
+ const [ug,shgc]=$('gl').value.split('|').map(Number);
+ const Uw=+$('wall').value, Ur=+$('roof').value;
+ const qWall=Uw*wall*(dT+ +$('col').value);
+ const qRoof=Ur*roofA*(dT+ +$('rcol').value);
+ const qGlC=ug*glass*dT;
+ const qGlS=glass*shgc*+$('or').value*+$('sh').value*0.8;
+ const [ps,pl]=$('act').value.split('|').map(Number), np=n('np');
+ const qPs=np*ps, qPl=np*pl;
+ const qLt=n('lt')*area*1.1, qEq=n('eq')*area;
+ const dW=Math.max(0,(W_(To,n('RHo'))-W_(Ti,n('RHi')))*1000);
+ const vent=np*n('vp')+area*0.3, inf=n('ach')*vol*1000/3600;
+ const qVs=1.207*vent*dT, qVl=3.0*vent*dW;
+ const qIs=1.207*inf*dT, qIl=3.0*inf*dW;
+ const items=[
+  ['دیوارهای خارجی',qWall,0],['بام',qRoof,0],['شیشه (هدایت + تابش)',qGlC+qGlS,1],
+  ['افراد',qPs+qPl,0],['روشنایی',qLt,0],['تجهیزات',qEq,0],
+  ['هوای تازه',qVs+qVl,1],['نشت هوا',qIs+qIl,0]
+ ].map(a=>[a[0],Math.max(0,a[1]),a[2]]);
+ const sub=items.reduce((s,a)=>s+a[1],0), tot=sub*(1+n('sf')/100);
+ const kw=tot/1000, tr=kw/3.517, btu=tot*3.412;
+ $('tr').textContent=fmt(tr,1);
+ const std=Math.ceil(tr*2)/2;
+ $('rec').innerHTML='ظرفیت پیشنهادی دستگاه: <b>'+fmt(std,1)+' TR</b> یا بیشتر';
+ $('kw').textContent=fmt(kw,1)+' kW';
+ $('btu').textContent=fmt(btu);
+ $('wm').textContent=area?fmt(tot/area)+' W/m²':'-';
+ $('m2').textContent=tr?fmt(area/tr,1)+' m²':'-';
+ const mx=Math.max(...items.map(a=>a[1]),1);
+ $('bars').innerHTML=items.map(a=>'<div class="bar'+(a[2]?' h':'')+'"><div class="t"><span>'+a[0]+'</span><em>'+fmt(a[1]/1000,1)+' kW ('+fmt(sub?a[1]/sub*100:0)+'%)</em></div><div class="tr"><i style="width:'+(a[1]/mx*100)+'%"></i></div></div>').join('');
+}
+document.querySelectorAll('input,select').forEach(e=>e.addEventListener('input',calc));
+calc();
+</script>
+</body>
+</html>
