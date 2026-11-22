@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>داشبورد کنترل پروژه مترو</title>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<style>
+:root{--bg:#f4f6f9;--card:#fff;--fg:#0f172a;--mut:#64748b;--bd:#e2e8f0;--pl:#3b82f6;--ac:#0d9488;--ev:#d97706;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#0b1220;--card:#131c2e;--fg:#e5e9f0;--mut:#94a3b8;--bd:#25324a;--pl:#60a5fa;--ac:#2dd4bf;--ev:#fbbf24}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#0b1220;--card:#131c2e;--fg:#e5e9f0;--mut:#94a3b8;--bd:#25324a;--pl:#60a5fa;--ac:#2dd4bf;--ev:#fbbf24}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{background:var(--bg);color:var(--fg);font-family:'Vazirmatn',Tahoma,sans-serif;margin:0}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:16px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const {useState,useMemo}=React, h=React.createElement;
+const raw=`2024-M01,Station Box Excavation,8.5,8.0,1.70,1.60,1.65,0.94,0.97,0,0,2,0,On-Track
+2024-M02,Station Box Excavation,18.0,16.5,3.60,3.30,3.50,0.92,0.94,0,0,4,1,Minor-Delay
+2024-M03,Shoring & Diaphragm Wall,28.0,24.0,5.60,4.80,5.20,0.86,0.92,0,0,8,0,Critical-Delay
+2024-M04,Shoring & Diaphragm Wall,39.0,33.0,7.80,6.60,7.30,0.85,0.90,0,0,12,0,Critical-Delay
+2024-M05,TBM Tunnel Drive 1,48.0,42.0,9.60,8.40,9.10,0.88,0.92,185,123,10,0,Delay-Mitigated
+2024-M06,TBM Tunnel Drive 1,59.0,52.0,11.80,10.40,11.20,0.88,0.93,240,160,11,1,Behind-Schedule
+2024-M07,Segmental Lining,69.0,63.0,13.80,12.60,13.20,0.91,0.95,310,206,9,0,Recovering
+2024-M08,Segmental Lining,78.0,73.5,15.60,14.70,15.10,0.94,0.97,365,243,6,0,Recovering
+2024-M09,Platform Slab Concrete,85.0,81.0,17.00,16.20,16.80,0.95,0.96,410,273,5,0,On-Track
+2024-M10,Platform Slab Concrete,91.0,87.5,18.20,17.50,17.90,0.96,0.98,420,280,4,0,On-Track
+2024-M11,Trackwork Installation,96.0,92.0,19.20,18.40,18.80,0.96,0.98,420,280,5,0,On-Track
+2024-M12,Trackwork Installation,100.0,97.0,20.00,19.40,19.60,0.97,0.99,420,280,3,0,Substantially-Completed`;
+const D=raw.split('\n').map((l,i)=>{const c=l.split(',');return{i,m:c[0],sec:c[1],pl:+c[2],ac:+c[3],pv:+c[4],ev:+c[5],spi:+c[7],cpi:+c[8],tbm:+c[9],ring:+c[10],dl:+c[11],st:c[13]}});
+const TUN=['TBM Tunnel Drive 1','Segmental Lining'];
+const secFa={'Station Box Excavation':'حفاری باکس ایستگاه','Shoring & Diaphragm Wall':'سازه نگهبان و دیوار دیافراگم','TBM Tunnel Drive 1':'پیشروی TBM (درایو ۱)','Segmental Lining':'لاینینگ سگمنتال','Platform Slab Concrete':'بتن‌ریزی دال سکو','Trackwork Installation':'نصب خط ریلی'};
+const grp=s=>['On-Track','Substantially-Completed'].includes(s)?['On-Track','#16a34a']:['Recovering','Minor-Delay','Delay-Mitigated'].includes(s)?['Recovering','#ca8a04']:['Critical-Delay','#dc2626'];
+const fa=(n,d=0)=>(+n).toLocaleString('fa-IR',{minimumFractionDigits:d,maximumFractionDigits:d});
+const avg=a=>a.reduce((s,x)=>s+x,0)/a.length;
+const tone=v=>v>=0.95?'#16a34a':v>=0.9?'#ca8a04':'#dc2626';
+
+function Kpi({t,v,s,c}){return h('div',{className:'card p-4',style:{borderTop:'4px solid '+c}},
+ h('div',{className:'text-xs',style:{color:'var(--mut)'}},t),
+ h('div',{className:'text-2xl font-extrabold mt-1',style:{color:c}},v),
+ h('div',{className:'text-xs mt-1',style:{color:'var(--mut)'}},s))}
+
+function Chart({rows}){
+ const [hv,setHv]=useState(null);
+ const x=i=>50+i*(700/11), y=v=>280-v*2.6;
+ const pth=k=>rows.map((r,j)=>(j?'L':'M')+x(r.i)+' '+y(k(r))).join(' ');
+ const hr=rows.find(r=>r.i===hv);
+ const S=[['برنامه‌ای','var(--pl)',r=>r.pl,''],['واقعی','var(--ac)',r=>r.ac,''],['ارزش کسب‌شده (٪ از BAC)','var(--ev)',r=>r.ev/20*100,'6 5']];
+ return h('div',{className:'card p-4'},
+  h('div',{className:'flex flex-wrap justify-between gap-2 mb-2'},
+   h('h2',{className:'font-bold'},'منحنی S: پیشرفت فیزیکی برنامه‌ای در برابر واقعی'),
+   h('div',{className:'flex gap-3 text-xs flex-wrap'},S.map(s=>h('span',{key:s[0],className:'flex items-center gap-1'},h('i',{style:{width:16,height:0,borderTop:'3px '+(s[3]?'dashed':'solid')+' '+s[1]}}),s[0])))),
+  h('div',{className:'text-sm mb-2 min-h-[1.5rem]',style:{color:'var(--mut)'}},hr?`ماه ${fa(hr.i+1)}: برنامه‌ای ${fa(hr.pl,1)}٪ | واقعی ${fa(hr.ac,1)}٪ | ارزش کسب‌شده ${fa(hr.ev/20*100,1)}٪ | انحراف ${fa(hr.ac-hr.pl,1)}٪`:'برای مشاهدهٔ جزئیات، نشانگر را روی ماه‌ها ببرید یا لمس کنید.'),
+  h('div',{dir:'ltr',className:'overflow-x-auto'},
+   h('svg',{viewBox:'0 0 800 330',style:{width:'100%',minWidth:520,height:'auto'}},
+    [0,25,50,75,100].map(g=>h('g',{key:g},h('line',{x1:50,x2:750,y1:y(g),y2:y(g),stroke:'var(--bd)'}),h('text',{x:42,y:y(g)+4,textAnchor:'end',fontSize:11,fill:'var(--mut)'},g+'%'))),
+    D.map(r=>h('text',{key:r.i,x:x(r.i),y:305,textAnchor:'middle',fontSize:11,fill:'var(--mut)'},fa(r.i+1))),
+    hv!=null&&h('line',{x1:x(hv),x2:x(hv),y1:20,y2:280,stroke:'var(--mut)',strokeDasharray:'3 3'}),
+    S.map(s=>h('path',{key:s[0],d:pth(s[2]),fill:'none',stroke:s[1],strokeWidth:2.5,strokeDasharray:s[3]})),
+    S.slice(0,2).map(s=>rows.map(r=>h('circle',{key:s[0]+r.i,cx:x(r.i),cy:y(s[2](r)),r:3.5,fill:s[1]}))),
+    rows.map(r=>h('rect',{key:'h'+r.i,x:x(r.i)-25,y:20,width:50,height:260,fill:'transparent',onMouseEnter:()=>setHv(r.i),onClick:()=>setHv(r.i)})))),
+  h('div',{className:'text-center text-xs',style:{color:'var(--mut)'}},'محور افقی: شمارهٔ ماه (۱ تا ۱۲)'))}
+
+function App(){
+ const [f,setF]=useState('all');
+ const rows=useMemo(()=>D.filter(r=>f==='all'||(f==='tun')===TUN.includes(r.sec)),[f]);
+ const last=rows[rows.length-1], sp=avg(rows.map(r=>r.spi)), cp=avg(rows.map(r=>r.cpi));
+ const varc=last.ac-last.pl, tbm=Math.max(...rows.map(r=>r.tbm)), ring=Math.max(...rows.map(r=>r.ring)), dl=rows.reduce((s,r)=>s+r.dl,0);
+ const F=[['all','کل پروژه'],['sta','ایستگاه و سازه نگهبان'],['tun','تونل و TBM']];
+ const acts=[
+  ['تیرهای سازه نگهبان: نصب موازی و پیش‌ساخته','اجرای هم‌زمان چند جبههٔ نصب استرات/والر با قطعات فولادی پیش‌ساخته، دو شیفت کاری و اعمال پیش‌بار هیدرولیکی بلافاصله پس از حفاری هر مرحله تا چرخهٔ «حفاری-مهار» کوتاه شود.'],
+  ['تسریع لاینینگ: افزایش نرخ نصب رینگ','شیفت دوم برای ارکتور و تیم نصب سگمنت، تأمین به‌موقع سگمنت (JIT) از کارخانه به تونل، و بهینه‌سازی سامانهٔ گروت پشت سگمنت و لوکوموتیو/واگن‌ها برای کاهش توقف‌های چرخه.'],
+  ['بازتوالی مسیر بحرانی و پایش هفتگی','اجرای Fast-Tracking روی فعالیت‌های مستقل (آماده‌سازی دال سکو هم‌زمان با پایان لاینینگ)، برنامهٔ Look-Ahead سه‌هفته‌ای و پایش Earned Schedule با آستانهٔ هشدار SPI کمتر از ۰٫۹۰.']];
+ return h('div',{className:'max-w-6xl mx-auto p-4 space-y-4'},
+  h('header',{className:'flex flex-wrap items-end justify-between gap-3'},
+   h('div',null,h('h1',{className:'text-2xl font-extrabold'},'داشبورد کنترل پروژه: ایستگاه و تونل مترو'),h('p',{className:'text-sm',style:{color:'var(--mut)'}},'عملکرد ماهانه ۱۲ ماهه | داده‌های سال ۲۰۲۴')),
+   h('div',{className:'flex gap-2 flex-wrap'},F.map(o=>h('button',{key:o[0],onClick:()=>setF(o[0]),className:'px-3 py-1.5 rounded-full text-sm font-semibold border',style:f===o[0]?{background:'var(--ac)',color:'#fff',borderColor:'var(--ac)'}:{background:'var(--card)',borderColor:'var(--bd)'}},o[1])))),
+  h('div',{className:'grid grid-cols-2 lg:grid-cols-5 gap-3'},
+   h(Kpi,{t:'میانگین SPI',v:fa(sp,2),s:sp>=0.95?'مطلوب':sp>=0.9?'نیازمند توجه':'بحرانی',c:tone(sp)}),
+   h(Kpi,{t:'میانگین CPI',v:fa(cp,2),s:cp>=0.95?'مطلوب':cp>=0.9?'نیازمند توجه':'بحرانی',c:tone(cp)}),
+   h(Kpi,{t:'انحراف پیشرفت (آخرین ماه)',v:fa(varc,1)+'٪',s:`واقعی ${fa(last.ac,1)}٪ از برنامه ${fa(last.pl,1)}٪`,c:varc>=-2?'#16a34a':varc>=-5?'#ca8a04':'#dc2626'}),
+   h(Kpi,{t:'حفاری TBM (تجمعی)',v:fa(tbm)+' متر',s:`${fa(ring)} رینگ لاینینگ`,c:'#2563eb'}),
+   h(Kpi,{t:'مجموع تأخیر مسیر بحرانی',v:fa(dl)+' روز',s:`بیشینهٔ ماهانه: ${fa(Math.max(...rows.map(r=>r.dl)))} روز`,c:dl>40?'#dc2626':dl>20?'#ca8a04':'#16a34a'})),
+  h(Chart,{rows}),
+  h('div',{className:'card p-4'},
+   h('h2',{className:'font-bold mb-3'},'جدول تحلیل وضعیت تأخیرات'),
+   h('div',{className:'overflow-x-auto'},h('table',{className:'w-full text-sm text-right',style:{minWidth:640}},
+    h('thead',null,h('tr',{style:{color:'var(--mut)',borderBottom:'1px solid var(--bd)'}},['ماه','بخش','برنامه‌ای٪','واقعی٪','SPI','CPI','تأخیر (روز)','وضعیت'].map(t=>h('th',{key:t,className:'py-2 px-2 font-semibold'},t)))),
+    h('tbody',null,rows.map(r=>{const g=grp(r.st);return h('tr',{key:r.i,style:{borderBottom:'1px solid var(--bd)'}},
+     h('td',{className:'py-2 px-2'},fa(r.i+1)),h('td',{className:'px-2'},secFa[r.sec]),h('td',{className:'px-2'},fa(r.pl,1)),h('td',{className:'px-2'},fa(r.ac,1)),
+     h('td',{className:'px-2 font-semibold',style:{color:tone(r.spi)}},fa(r.spi,2)),h('td',{className:'px-2 font-semibold',style:{color:tone(r.cpi)}},fa(r.cpi,2)),h('td',{className:'px-2'},fa(r.dl)),
+     h('td',{className:'px-2'},h('span',{title:r.st,dir:'ltr',className:'inline-block px-2 py-0.5 rounded-full text-xs font-bold',style:{background:g[1]+'26',color:g[1],border:'1px solid '+g[1]}},g[0])))})))),
+   h('p',{className:'text-xs mt-2',style:{color:'var(--mut)'}},'نگاشت وضعیت‌ها: Minor-Delay و Delay-Mitigated و Recovering ← زرد؛ Behind-Schedule و Critical-Delay ← قرمز؛ Substantially-Completed و On-Track ← سبز. با نگه‌داشتن نشانگر روی هر برچسب، وضعیت اصلی نمایش داده می‌شود.')),
+  h('div',{className:'card p-4',style:{borderRight:'4px solid var(--ac)'}},
+   h('h2',{className:'font-bold mb-3'},'تحلیل استراتژیک: ۳ اقدام اصلاحی فنی'),
+   h('ol',{className:'space-y-3'},acts.map((a,i)=>h('li',{key:i,className:'flex gap-3'},
+    h('span',{className:'shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold',style:{background:'var(--ac)',color:'#fff'}},fa(i+1)),
+    h('div',null,h('div',{className:'font-semibold'},a[0]),h('div',{className:'text-sm mt-0.5',style:{color:'var(--mut)'}},a[1])))))));
+}
+ReactDOM.createRoot(document.getElementById('root')).render(h(App));
+</script>
+</body>
+</html>
